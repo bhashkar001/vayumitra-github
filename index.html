@@ -1,0 +1,1147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VayuMitra — Cute &amp; Colorful Winter Smog Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+          colors: {
+            brand: {
+              50: '#eefaf7',
+              100: '#d5f2ea',
+              500: '#0d9488',
+              600: '#0f766e',
+              700: '#115e59',
+              900: '#0a2e2c'
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    body { font-family: 'Inter', system-ui, sans-serif; }
+    .chat-scroll::-webkit-scrollbar { width: 6px; }
+    .chat-scroll::-webkit-scrollbar-thumb { background: #99f6e4; border-radius: 9999px; }
+    .tab-btn[aria-selected="true"] {
+      background: linear-gradient(135deg, #0d9488, #0284c7);
+      color: #ffffff;
+      box-shadow: 0 4px 12px -2px rgba(13, 148, 136, 0.35);
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-sky-50 via-teal-50/50 to-amber-50/60 text-slate-900 antialiased min-h-screen">
+  <!-- Top Header & Live Location Context Bar -->
+  <header class="bg-white/90 backdrop-blur-md border-b border-teal-100 sticky top-0 z-30 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+      <div class="flex items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <img src="assets/mascot.jpg" alt="VayuMitra Mascot" class="w-10 h-10 rounded-2xl object-cover border-2 border-teal-200 shadow-sm" />
+          <div>
+            <h1 class="text-base sm:text-lg font-extrabold tracking-tight text-slate-900 leading-tight flex items-center gap-1.5">
+              <span>VayuMitra</span>
+              <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-gradient-to-r from-teal-100 to-sky-100 text-teal-800">Clean-Air Buddy</span>
+            </h1>
+            <p class="text-xs text-slate-500">Cute, practical winter smog &amp; indoor air guide for families</p>
+          </div>
+        </div>
+        <button id="sourcesModalBtn" type="button" class="lg:hidden inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100 transition">
+          <i data-lucide="book-open" class="w-3.5 h-3.5"></i>
+          <span>Sources</span>
+        </button>
+      </div>
+
+      <!-- City, Scenario & Live AQI Strip -->
+      <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+        <div class="flex items-center gap-1.5 bg-sky-50 border border-sky-200 rounded-xl px-2.5 py-1.5">
+          <i data-lucide="map-pin" class="w-3.5 h-3.5 text-sky-600"></i>
+          <label for="citySelect" class="sr-only">Select City</label>
+          <select id="citySelect" class="bg-transparent text-xs sm:text-sm font-semibold text-slate-800 focus:outline-none cursor-pointer">
+            <option value="kolkata">Kolkata, West Bengal</option>
+            <option value="delhi">Delhi NCR</option>
+            <option value="mumbai">Mumbai</option>
+            <option value="chennai">Chennai</option>
+            <option value="bengaluru">Bengaluru</option>
+            <option value="custom">Custom PM2.5</option>
+          </select>
+        </div>
+
+        <div id="scenarioToggleWrap" class="inline-flex rounded-xl bg-slate-100 p-1 text-xs font-semibold">
+          <button id="btnTypical" type="button" class="px-2.5 py-1 rounded-lg transition">Winter Avg</button>
+          <button id="btnPeak" type="button" class="px-2.5 py-1 rounded-lg transition">Peak Smog</button>
+        </div>
+
+        <div id="customSliderWrap" class="hidden items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-2.5 py-1">
+          <label for="customPmRange" class="text-xs font-semibold text-amber-800">PM2.5:</label>
+          <input id="customPmRange" type="range" min="15" max="350" value="95" class="w-24 accent-teal-600 cursor-pointer" />
+          <span id="customPmVal" class="text-xs font-bold text-slate-800 w-14">95 µg/m³</span>
+        </div>
+
+        <div id="aqiBadge" class="flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs sm:text-sm font-bold shadow-sm">
+          <span id="aqiDot" class="w-2.5 h-2.5 rounded-full"></span>
+          <span id="aqiText">PM2.5: 78 µg/m³ • Moderate</span>
+        </div>
+
+        <button id="sourcesModalBtnDesktop" type="button" class="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100 transition">
+          <i data-lucide="book-open" class="w-3.5 h-3.5"></i>
+          <span>Sources</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-5 space-y-5">
+    <!-- Cute Colorful Hero Welcome Card -->
+    <section class="bg-gradient-to-r from-teal-500 via-emerald-500 to-sky-500 rounded-3xl p-4 sm:p-5 text-white shadow-md overflow-hidden">
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+        <div class="md:col-span-7 space-y-2">
+          <span class="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full">
+            <i data-lucide="sun" class="w-3.5 h-3.5 text-amber-200"></i>
+            <span>Family &amp; Community Clean-Air Companion</span>
+          </span>
+          <h2 class="text-xl sm:text-2xl font-extrabold leading-snug">Breathe Easier This Winter — Small Daily Swaps, Big Clean-Air Wins!</h2>
+          <p class="text-xs sm:text-sm text-teal-50 leading-relaxed">
+            Tailor your city, home, and commute below to get friendly AI guidance, cozy indoor air hacks, and real-time PM2.5 &amp; CO₂ impact tracking.
+          </p>
+        </div>
+        <div class="md:col-span-5">
+          <div class="rounded-2xl overflow-hidden border-2 border-white/40 shadow-lg bg-sky-100">
+            <img src="assets/hero.jpg" alt="Cozy green home with friendly cloud mascot" class="w-full h-36 sm:h-40 object-cover" />
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Top KPI Impact Banner -->
+    <section aria-label="Direct Impact Summary" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+      <div class="bg-gradient-to-br from-white to-amber-50/70 rounded-2xl border border-amber-200/80 p-4 shadow-sm">
+        <div class="flex items-center justify-between text-xs font-semibold text-amber-800">
+          <span>Outdoor vs. WHO 24h Safe</span>
+          <span class="w-7 h-7 rounded-xl bg-amber-100 flex items-center justify-center"><i data-lucide="alert-triangle" class="w-4 h-4 text-amber-600"></i></span>
+        </div>
+        <div class="mt-1.5 flex items-baseline gap-2">
+          <span id="kpiOutdoorPm" class="text-2xl font-extrabold text-slate-900">78 µg/m³</span>
+          <span id="kpiWhoRatio" class="text-xs font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full">5.2× WHO</span>
+        </div>
+        <p id="kpiCityNote" class="mt-1 text-xs text-slate-600 truncate">Kolkata winter 2025–26 avg (CREA)</p>
+      </div>
+
+      <div class="bg-gradient-to-br from-white to-teal-50/80 rounded-2xl border border-teal-200/80 p-4 shadow-sm">
+        <div class="flex items-center justify-between text-xs font-semibold text-teal-800">
+          <span>Estimated Indoor PM2.5</span>
+          <span class="w-7 h-7 rounded-xl bg-teal-100 flex items-center justify-center"><i data-lucide="home" class="w-4 h-4 text-teal-600"></i></span>
+        </div>
+        <div class="mt-1.5 flex items-baseline gap-2">
+          <span id="kpiIndoorPm" class="text-2xl font-extrabold text-teal-700">42 µg/m³</span>
+          <span id="kpiIndoorDrop" class="text-xs font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">-46% vs outdoor</span>
+        </div>
+        <p id="kpiIndoorNote" class="mt-1 text-xs text-slate-600">Unfiltered baseline: ~76.3% of outdoor</p>
+      </div>
+
+      <div class="bg-gradient-to-br from-white to-sky-50/80 rounded-2xl border border-sky-200/80 p-4 shadow-sm">
+        <div class="flex items-center justify-between text-xs font-semibold text-sky-800">
+          <span>Personal Exposure Drop</span>
+          <span class="w-7 h-7 rounded-xl bg-sky-100 flex items-center justify-center"><i data-lucide="shield-check" class="w-4 h-4 text-sky-600"></i></span>
+        </div>
+        <div class="mt-1.5 flex items-baseline gap-2">
+          <span id="kpiExposureSaved" class="text-2xl font-extrabold text-sky-700">34%</span>
+          <span id="kpiActiveCount" class="text-xs font-semibold text-slate-600">4 actions active</span>
+        </div>
+        <p class="mt-1 text-xs text-slate-600">Combined timing, filtration &amp; seal gains</p>
+      </div>
+
+      <div class="bg-gradient-to-br from-white to-rose-50/60 rounded-2xl border border-rose-200/80 p-4 shadow-sm">
+        <div class="flex items-center justify-between text-xs font-semibold text-rose-800">
+          <span>Community CO₂ Avoided / Wk</span>
+          <span class="w-7 h-7 rounded-xl bg-rose-100 flex items-center justify-center"><i data-lucide="heart-handshake" class="w-4 h-4 text-rose-500"></i></span>
+        </div>
+        <div class="mt-1.5 flex items-baseline gap-2">
+          <span id="kpiCo2Saved" class="text-2xl font-extrabold text-slate-900">12.4 kg</span>
+          <span id="kpiHouseholdBadge" class="text-xs font-bold text-rose-700 bg-rose-100 px-2 py-0.5 rounded-full">1 household</span>
+        </div>
+        <p class="mt-1 text-xs text-slate-600">Based on EPA 248 g CO₂/km car baseline</p>
+      </div>
+    </section>
+
+    <!-- Lifestyle & Home Profile Bar -->
+    <section class="bg-white/95 rounded-2xl border border-teal-100 p-4 shadow-sm">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+        <div class="flex items-center gap-2">
+          <span class="w-7 h-7 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center"><i data-lucide="sliders-horizontal" class="w-4 h-4"></i></span>
+          <h2 class="text-sm font-bold text-slate-900">Tailor to Your Household &amp; Lifestyle</h2>
+        </div>
+        <span class="text-xs text-teal-700 font-medium bg-teal-50 px-2.5 py-1 rounded-full">Live AI &amp; indoor PM2.5 sync</span>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div>
+          <label for="householdSelect" class="block text-xs font-semibold text-slate-600 mb-1">Household Profile</label>
+          <select id="householdSelect" class="w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500">
+            <option value="family_kids">Family with Young Kids</option>
+            <option value="seniors">Multi-Generational (Seniors)</option>
+            <option value="commuter">Daily Urban Commuter</option>
+            <option value="community">RWA / Neighborhood Group</option>
+          </select>
+        </div>
+        <div>
+          <label for="commuteSelect" class="block text-xs font-semibold text-slate-600 mb-1">Primary Commute</label>
+          <select id="commuteSelect" class="w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500">
+            <option value="car">Solo Petrol/Diesel Car (15 km/day)</option>
+            <option value="two_wheeler">Two-Wheeler / Scooter</option>
+            <option value="transit">Metro / Electric Bus</option>
+            <option value="wfh">Work from Home / Local Walk</option>
+          </select>
+        </div>
+        <div>
+          <label for="cookingSelect" class="block text-xs font-semibold text-slate-600 mb-1">Cooking &amp; Heating</label>
+          <select id="cookingSelect" class="w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500">
+            <option value="gas_no_hood">LPG Stove (No Chimney/Exhaust)</option>
+            <option value="gas_hood">LPG Stove + Chimney/Exhaust</option>
+            <option value="induction">Induction / Electric</option>
+          </select>
+        </div>
+        <div>
+          <span class="block text-xs font-semibold text-slate-600 mb-1">Indoor Air Filtration</span>
+          <button id="purifierToggleBtn" type="button" class="w-full flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold transition">
+            <span id="purifierLabel">No HEPA Purifier Yet</span>
+            <span id="purifierPill" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-600">OFF</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Navigation Tabs -->
+    <nav class="flex flex-wrap gap-2 bg-white/95 p-1.5 rounded-2xl border border-teal-100 shadow-sm" role="tablist" aria-label="Assistant Views">
+      <button type="button" role="tab" aria-selected="true" data-tab="assistant" class="tab-btn flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition">
+        <i data-lucide="sparkles" class="w-4 h-4"></i>
+        <span>GenAI Smog Assistant</span>
+      </button>
+      <button type="button" role="tab" aria-selected="false" data-tab="routines" class="tab-btn flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-700 hover:bg-teal-50 transition">
+        <i data-lucide="calendar-clock" class="w-4 h-4 text-teal-600"></i>
+        <span>Low-Emission Routines</span>
+      </button>
+      <button type="button" role="tab" aria-selected="false" data-tab="iaq" class="tab-btn flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-700 hover:bg-sky-50 transition">
+        <i data-lucide="fan" class="w-4 h-4 text-sky-600"></i>
+        <span>Indoor Air Hacks</span>
+      </button>
+      <button type="button" role="tab" aria-selected="false" data-tab="impact" class="tab-btn flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-700 hover:bg-amber-50 transition">
+        <i data-lucide="bar-chart-3" class="w-4 h-4 text-amber-600"></i>
+        <span>Impact &amp; Community</span>
+      </button>
+    </nav>
+
+    <!-- TAB 1: GenAI Smog Assistant -->
+    <section id="panel-assistant" class="tab-panel grid grid-cols-1 lg:grid-cols-3 gap-5">
+      <div class="lg:col-span-2 bg-white rounded-2xl border border-teal-100 shadow-sm flex flex-col h-[520px]">
+        <div class="px-4 py-3 border-b border-teal-100 bg-gradient-to-r from-teal-50/60 to-sky-50/60 rounded-t-2xl flex items-center justify-between">
+          <div class="flex items-center gap-2.5">
+            <img src="assets/mascot.jpg" alt="AI Buddy" class="w-7 h-7 rounded-full object-cover border border-teal-300" />
+            <h2 class="text-sm font-bold text-slate-900">VayuMitra AI Guidance</h2>
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          </div>
+          <button id="clearChatBtn" type="button" class="text-xs text-slate-500 hover:text-teal-700 font-semibold">Reset Chat</button>
+        </div>
+
+        <div id="chatMessages" class="flex-1 overflow-y-auto p-4 space-y-4 chat-scroll bg-gradient-to-b from-slate-50/50 to-teal-50/20"></div>
+
+        <!-- Quick Prompts -->
+        <div class="px-4 py-2.5 border-t border-slate-100 bg-white flex flex-wrap gap-1.5">
+          <button type="button" class="quick-prompt text-xs px-3 py-1.5 rounded-full bg-teal-50 text-teal-800 border border-teal-200 hover:bg-teal-100 font-semibold transition" data-prompt="Plan my low-emission daily routine for today">Plan today's routine</button>
+          <button type="button" class="quick-prompt text-xs px-3 py-1.5 rounded-full bg-sky-50 text-sky-800 border border-sky-200 hover:bg-sky-100 font-semibold transition" data-prompt="Best indoor air quality hacks on a low budget?">Budget indoor air hacks</button>
+          <button type="button" class="quick-prompt text-xs px-3 py-1.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100 font-semibold transition" data-prompt="When is it safe to open windows or exercise outside?">Window &amp; outdoor timing</button>
+          <button type="button" class="quick-prompt text-xs px-3 py-1.5 rounded-full bg-rose-50 text-rose-800 border border-rose-200 hover:bg-rose-100 font-semibold transition" data-prompt="What sustainable swaps cut the most neighborhood smog?">Neighborhood smog swaps</button>
+        </div>
+
+        <!-- Chat Input -->
+        <form id="chatForm" class="p-3 border-t border-slate-200 bg-white rounded-b-2xl flex gap-2">
+          <label for="chatInput" class="sr-only">Ask VayuMitra</label>
+          <input id="chatInput" type="text" placeholder="Ask about school runs, cooking fumes, masks, or community action..." class="flex-1 rounded-xl border border-slate-200 bg-slate-50/60 px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+          <button type="submit" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-teal-500 to-sky-600 text-white text-sm font-semibold hover:opacity-95 shadow-sm transition">
+            <span>Ask</span>
+            <i data-lucide="send" class="w-3.5 h-3.5"></i>
+          </button>
+        </form>
+      </div>
+
+      <!-- Right Sidebar: Today's Personalized Priority Card -->
+      <aside class="space-y-4">
+        <div class="bg-white rounded-2xl border border-sky-100 p-4 shadow-sm">
+          <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+            <span class="w-7 h-7 rounded-xl bg-sky-100 text-sky-600 flex items-center justify-center"><i data-lucide="compass" class="w-4 h-4"></i></span>
+            <span>Tailored Briefing</span>
+          </h3>
+          <p id="briefingSummary" class="mt-2.5 text-xs sm:text-sm text-slate-600 leading-relaxed"></p>
+          <div class="mt-3 pt-3 border-t border-slate-100 space-y-2" id="briefingHighlights"></div>
+        </div>
+
+        <div class="bg-gradient-to-br from-teal-600 via-emerald-600 to-sky-700 text-white rounded-2xl p-4 shadow-md">
+          <h3 class="text-sm font-bold flex items-center gap-2">
+            <i data-lucide="zap" class="w-4 h-4 text-amber-300"></i>
+            <span>Highest-Impact Next Step</span>
+          </h3>
+          <p id="topNextStepTitle" class="mt-2 text-sm font-bold text-amber-100"></p>
+          <p id="topNextStepDesc" class="mt-1 text-xs text-teal-50 leading-relaxed"></p>
+          <button id="applyTopStepBtn" type="button" class="mt-3 w-full py-2 rounded-xl bg-white text-teal-800 text-xs font-bold hover:bg-amber-50 shadow-sm transition">
+            Activate This Action
+          </button>
+        </div>
+      </aside>
+    </section>
+
+    <!-- TAB 2: Low-Emission Daily Routines & Sustainable Alternatives -->
+    <section id="panel-routines" class="tab-panel hidden space-y-4">
+      <div class="bg-white rounded-2xl border border-teal-100 p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h2 class="text-base font-bold text-slate-900">Low-Emission Daily Routines &amp; Sustainable Swaps</h2>
+          <p class="text-xs text-slate-500">Toggle actions you plan to adopt. Every card shows the direct health exposure or emission impact.</p>
+        </div>
+        <div class="flex flex-wrap gap-1.5" id="routineFilterGroup">
+          <button type="button" data-filter="all" class="routine-filter px-3 py-1.5 rounded-xl text-xs font-semibold bg-teal-600 text-white">All</button>
+          <button type="button" data-filter="morning" class="routine-filter px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">Morning</button>
+          <button type="button" data-filter="midday" class="routine-filter px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">Midday</button>
+          <button type="button" data-filter="evening" class="routine-filter px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">Evening</button>
+          <button type="button" data-filter="community" class="routine-filter px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">Community</button>
+        </div>
+      </div>
+
+      <div id="routinesGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+    </section>
+
+    <!-- TAB 3: Indoor Air Quality (IAQ) Hacks & Exposure Simulator -->
+    <section id="panel-iaq" class="tab-panel hidden space-y-4">
+      <div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
+        <div class="lg:col-span-3 bg-white rounded-2xl border border-sky-100 p-4 shadow-sm">
+          <div class="flex items-center justify-between mb-2">
+            <div>
+              <h2 class="text-base font-bold text-slate-900">Indoor PM2.5 Exposure Simulator</h2>
+              <p class="text-xs text-slate-500">Compares outdoor smog against unfiltered rooms (~76.3% ratio) and your active IAQ hacks.</p>
+            </div>
+            <span id="iaqBadge" class="text-xs font-bold px-3 py-1 rounded-full bg-emerald-100 text-emerald-800"></span>
+          </div>
+          <div class="relative h-64 mt-3">
+            <canvas id="iaqChart"></canvas>
+          </div>
+        </div>
+
+        <div class="lg:col-span-2 bg-white rounded-2xl border border-teal-100 p-4 shadow-sm flex flex-col justify-between">
+          <div>
+            <h3 class="text-sm font-bold text-slate-900">Why These Numbers Matter</h3>
+            <ul class="mt-2.5 space-y-2.5 text-xs text-slate-600 leading-relaxed">
+              <li class="flex gap-2">
+                <i data-lucide="check-circle-2" class="w-4 h-4 text-teal-600 shrink-0 mt-0.5"></i>
+                <span><strong>Closed windows + HEPA filtration:</strong> Peer-reviewed household trials show indoor/outdoor PM2.5 drops from 76.3% to 38.6% overall, and down to 22.1% with higher-flow filtration (<a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC9516965/" target="_blank" rel="noopener" class="text-teal-700 underline">PMC9516965</a>).</span>
+              </li>
+              <li class="flex gap-2">
+                <i data-lucide="alert-circle" class="w-4 h-4 text-amber-500 shrink-0 mt-0.5"></i>
+                <span><strong>Window timing matters:</strong> Opening windows during high smog raises indoor/outdoor PM2.5 from 37.5% to 65.3%, undermining air purifiers.</span>
+              </li>
+              <li class="flex gap-2">
+                <i data-lucide="flame" class="w-4 h-4 text-rose-500 shrink-0 mt-0.5"></i>
+                <span><strong>Cooking spikes:</strong> Unvented gas stoves add indoor NO₂ and PM2.5; running an exhaust fan or switching to induction cuts peak kitchen exposure.</span>
+              </li>
+            </ul>
+          </div>
+          <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+            <span class="text-slate-500">WHO 24-hour PM2.5 guideline:</span>
+            <span class="font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full">15 µg/m³</span>
+          </div>
+        </div>
+      </div>
+
+      <div id="iaqGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+    </section>
+
+    <!-- TAB 4: Direct Impact & Community Multiplier -->
+    <section id="panel-impact" class="tab-panel hidden space-y-4">
+      <div class="bg-white rounded-2xl border border-teal-100 p-4 shadow-sm">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
+          <div class="lg:col-span-4 rounded-2xl overflow-hidden border border-teal-100">
+            <img src="assets/community.jpg" alt="Eco-friendly clean air neighborhood" class="w-full h-44 object-cover" />
+          </div>
+          <div class="lg:col-span-8 flex flex-col justify-between gap-4">
+            <div>
+              <h2 class="text-base font-bold text-slate-900">Neighborhood &amp; RWA Impact Multiplier</h2>
+              <p class="text-xs sm:text-sm text-slate-600 mt-1">See how your household's low-emission choices scale when neighbors, schools, or an apartment block join in.</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-3 bg-gradient-to-r from-teal-50 to-sky-50 border border-teal-200 rounded-2xl px-4 py-3">
+              <label for="communitySlider" class="text-xs font-bold text-slate-700 whitespace-nowrap">Participating Households:</label>
+              <input id="communitySlider" type="range" min="1" max="200" value="1" class="flex-1 min-w-[140px] accent-teal-600 cursor-pointer" />
+              <span id="communityCountLabel" class="text-base font-extrabold text-teal-700 w-12 text-right">1</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div class="bg-white rounded-2xl border border-sky-100 p-4 shadow-sm">
+          <h3 class="text-sm font-bold text-slate-900 mb-1">Weekly CO₂ &amp; Smog-Precursor Reduction</h3>
+          <p class="text-xs text-slate-500 mb-3">Breakdown across commute, cooking/energy, and zero-burning community habits.</p>
+          <div class="relative h-64">
+            <canvas id="impactChart"></canvas>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-teal-100 p-4 shadow-sm flex flex-col justify-between">
+          <div>
+            <h3 class="text-sm font-bold text-slate-900">Your Active Choices &amp; Why They Work</h3>
+            <div id="activeImpactList" class="mt-3 space-y-2.5 max-h-56 overflow-y-auto pr-1"></div>
+          </div>
+          <div class="mt-4 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
+            <span id="communityEquivText" class="text-xs font-semibold text-teal-800"></span>
+            <button id="copyPlanBtn" type="button" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-teal-500 to-sky-600 text-white text-xs font-bold hover:opacity-95 shadow-sm transition">
+              <i data-lucide="share-2" class="w-3.5 h-3.5"></i>
+              <span>Copy Neighborhood Plan</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed bottom-4 right-4 z-50 hidden items-center gap-2 bg-slate-900 text-white text-xs font-semibold px-4 py-2.5 rounded-2xl shadow-lg">
+    <i data-lucide="check" class="w-4 h-4 text-emerald-400"></i>
+    <span id="toastText">Copied to clipboard</span>
+  </div>
+
+  <!-- Sources & Methodology Modal -->
+  <div id="sourcesModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 p-4">
+    <div class="bg-white rounded-3xl max-w-lg w-full p-5 shadow-xl border border-teal-100 space-y-3">
+      <div class="flex items-center justify-between">
+        <h3 class="text-base font-bold text-slate-900">Verified Data &amp; Methodology</h3>
+        <button id="closeSourcesBtn" type="button" class="p-1 rounded-xl hover:bg-slate-100 text-slate-500">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <div class="text-xs text-slate-600 space-y-2 leading-relaxed">
+        <p><strong>CPCB National AQI (India):</strong> Good (0–30 µg/m³ PM2.5), Satisfactory (31–60), Moderate (61–90), Poor (91–120), Very Poor (121–250), Severe (250+). (<a href="https://missionsustainability.org/blog/air-quality-index" target="_blank" rel="noopener" class="text-teal-700 underline">CPCB AQI Reference</a>)</p>
+        <p><strong>WHO 2021 Guidelines:</strong> PM2.5 should not exceed 15 µg/m³ (24-hour mean) or 5 µg/m³ (annual mean). (<a href="https://www.c40knowledgehub.org/s/article/WHO-Air-Quality-Guidelines?language=en_US" target="_blank" rel="noopener" class="text-teal-700 underline">WHO AQG</a>)</p>
+        <p><strong>City Winter PM2.5 Profiles:</strong> Based on CREA's Winter 2025–26 snapshot (Delhi 163 µg/m³, Kolkata 78 µg/m³, Mumbai 48 µg/m³, Chennai 44 µg/m³, Bengaluru 39 µg/m³) and CSE's 2024–25 peak hotspot readings (Kolkata Ballygunge 195 µg/m³, Delhi 602 µg/m³). (<a href="https://energyandcleanair.org/wp/wp-content/uploads/2026/03/Winter-ambient-air-quality-snapshot-for-India-Winter-2025-26.pdf" target="_blank" rel="noopener" class="text-teal-700 underline">CREA</a>, <a href="https://www.cseindia.org/cse-releases-2024-25-winter-air-pollution-analysis-for-six-megacities-of-india-12641" target="_blank" rel="noopener" class="text-teal-700 underline">CSE</a>)</p>
+        <p><strong>Indoor Filtration &amp; Transport:</strong> HEPA filtration efficacy from <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC9516965/" target="_blank" rel="noopener" class="text-teal-700 underline">PMC9516965</a> &amp; <a href="https://www.epa.gov/indoor-air-quality-iaq/what-hepa-filter" target="_blank" rel="noopener" class="text-teal-700 underline">US EPA</a>. Passenger car emissions (~400 g CO₂/mile ≈ 248 g CO₂/km) from <a href="https://www.epa.gov/greenvehicles/greenhouse-gas-emissions-typical-passenger-vehicle" target="_blank" rel="noopener" class="text-teal-700 underline">US EPA</a>.</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Grounded city winter profiles (CREA 2025-26 & CSE 2024-25)
+    const CITIES = {
+      kolkata: {
+        name: 'Kolkata, West Bengal',
+        avgPm25: 78,
+        peakPm25: 195,
+        avgNote: 'Kolkata winter 2025–26 avg: 78 µg/m³ (CREA)',
+        peakNote: 'Ballygunge winter peak: 195 µg/m³ (CSE)',
+        tip: 'Morning thermal inversions trap traffic exhaust and riverfront humidity; afternoon 1–4 PM offers the cleanest ventilation window.'
+      },
+      delhi: {
+        name: 'Delhi NCR',
+        avgPm25: 163,
+        peakPm25: 320,
+        avgNote: 'Delhi winter 2025–26 avg: 163 µg/m³ (CREA)',
+        peakNote: 'Severe smog episode: 320+ µg/m³ (CSE peak 602)',
+        tip: 'Keep windows sealed, run HEPA filtration continuously, and wear a snug N95/FFP2 mask for any outdoor commute.'
+      },
+      mumbai: {
+        name: 'Mumbai',
+        avgPm25: 48,
+        peakPm25: 194,
+        avgNote: 'Mumbai winter 2025–26 avg: 48 µg/m³ (CREA)',
+        peakNote: 'Malad West / Deonar peak: 194 µg/m³ (CSE)',
+        tip: 'Coastal sea breezes help mid-afternoon, but construction dust and evening traffic spike PM2.5 in inland pockets.'
+      },
+      chennai: {
+        name: 'Chennai',
+        avgPm25: 44,
+        peakPm25: 95,
+        avgNote: 'Chennai winter 2025–26 avg: 44 µg/m³ (CREA)',
+        peakNote: 'Localized winter spike: 95 µg/m³',
+        tip: 'Use coastal breeze windows for natural cross-ventilation while keeping kitchen exhaust active during frying.'
+      },
+      bengaluru: {
+        name: 'Bengaluru',
+        avgPm25: 39,
+        peakPm25: 85,
+        avgNote: 'Bengaluru winter 2025–26 avg: 39 µg/m³ (CREA)',
+        peakNote: 'Industrial / traffic corridor spike: 85 µg/m³',
+        tip: 'Cool winter mornings trap corridor traffic; shift jogging to late morning and prioritize Metro/bus commutes.'
+      },
+      custom: {
+        name: 'Custom Location',
+        avgPm25: 95,
+        peakPm25: 95,
+        avgNote: 'User-selected PM2.5 level',
+        peakNote: 'User-selected PM2.5 level',
+        tip: 'Adjust the PM2.5 slider to match your nearest CPCB or neighborhood sensor reading.'
+      }
+    };
+
+    const ACTIONS = [
+      {
+        id: 'shift_walk',
+        type: 'routine',
+        phase: 'morning',
+        title: 'Shift Outdoor Exercise to 1–4 PM',
+        cost: 'Free',
+        effort: 'Easy',
+        exposureDrop: 14,
+        indoorReductionPct: 0,
+        co2KgWeek: 0,
+        category: 'Timing',
+        badgeColor: 'bg-amber-100 text-amber-800',
+        impactText: 'Avoids 6–9 AM thermal inversion peak; cuts inhaled PM2.5 dose by ~14% for outdoor activity.',
+        why: 'Cold morning air traps vehicle and biomass smoke near ground level until midday sun disperses it.'
+      },
+      {
+        id: 'metro_carpool',
+        type: 'routine',
+        phase: 'morning',
+        title: 'Swap Solo Car/2-Wheeler for Metro or Carpool (3 days/wk)',
+        cost: 'Saves ₹',
+        effort: 'Moderate',
+        exposureDrop: 6,
+        indoorReductionPct: 0,
+        co2KgWeek: 11.2,
+        category: 'Commute',
+        badgeColor: 'bg-sky-100 text-sky-800',
+        impactText: 'Avoids ~11.2 kg CO₂/week (EPA 248 g/km car baseline) and removes tailpipe NO₂ & PM2.5.',
+        why: 'Replacing 45 km/week of solo driving with Metro/electric transit directly cuts urban roadside emissions.'
+      },
+      {
+        id: 'no_idling',
+        type: 'routine',
+        phase: 'midday',
+        title: 'Zero-Idling School & Market Drop-offs',
+        cost: 'Free',
+        effort: 'Easy',
+        exposureDrop: 4,
+        indoorReductionPct: 0,
+        co2KgWeek: 2.1,
+        category: 'Commute',
+        badgeColor: 'bg-sky-100 text-sky-800',
+        impactText: 'Saves ~2.1 kg CO₂/week and protects children from concentrated tailpipe plumes at school gates.',
+        why: 'Idling engines emit concentrated PM2.5 and NO₂ right at child breathing height.'
+      },
+      {
+        id: 'n95_commute',
+        type: 'routine',
+        phase: 'evening',
+        title: 'Wear Fitted N95/FFP2 Mask on High-Smog Commutes',
+        cost: 'Low Cost',
+        effort: 'Easy',
+        exposureDrop: 18,
+        indoorReductionPct: 0,
+        co2KgWeek: 0,
+        category: 'Protection',
+        badgeColor: 'bg-rose-100 text-rose-800',
+        impactText: 'Filters ≥95% of airborne particulates when fitted snugly during roadside travel.',
+        why: 'Cloth and surgical masks leave gaps; a nose-wire N95 blocks fine PM2.5 during evening rush hour.'
+      },
+      {
+        id: 'no_burning',
+        type: 'routine',
+        phase: 'community',
+        title: 'Neighborhood Zero-Leaf & Trash Burning Pledge',
+        cost: 'Free',
+        effort: 'Community',
+        exposureDrop: 9,
+        indoorReductionPct: 0,
+        co2KgWeek: 8.5,
+        category: 'Community',
+        badgeColor: 'bg-emerald-100 text-emerald-800',
+        impactText: 'Prevents hyper-local smoke spikes (~8.5 kg CO₂e/wk avoided per household composted instead).',
+        why: 'Evening dry-leaf and waste bonfires create severe localized PM2.5 plumes in residential lanes.'
+      },
+      {
+        id: 'wet_mop',
+        type: 'iaq',
+        phase: 'morning',
+        title: 'Wet-Mop Floors Instead of Dry Brooming',
+        cost: 'Free',
+        effort: 'Easy',
+        exposureDrop: 5,
+        indoorReductionPct: 8,
+        co2KgWeek: 0,
+        category: 'Indoor',
+        badgeColor: 'bg-teal-100 text-teal-800',
+        impactText: 'Prevents settled dust & PM10/PM2.5 from resuspending into indoor breathing zones (~8% indoor drop).',
+        why: 'Dry sweeping kicks settled soot back into the air for hours.'
+      },
+      {
+        id: 'window_seal',
+        type: 'iaq',
+        phase: 'evening',
+        title: 'Seal Window Gaps & Ventilate Only 1–4 PM',
+        cost: 'Free / ₹200',
+        effort: 'Easy',
+        exposureDrop: 12,
+        indoorReductionPct: 18,
+        co2KgWeek: 0,
+        category: 'Indoor',
+        badgeColor: 'bg-teal-100 text-teal-800',
+        impactText: 'Cuts outdoor smog infiltration; keeping windows shut halves indoor/outdoor PM2.5 vs open windows.',
+        why: 'PMC9516965 data shows open windows raise indoor/outdoor PM2.5 from 37.5% to 65.3%.'
+      },
+      {
+        id: 'kitchen_exhaust',
+        type: 'iaq',
+        phase: 'evening',
+        title: 'Lid-On Cooking + Exhaust Fan / Induction Swap',
+        cost: 'Free / Upgrade',
+        effort: 'Easy',
+        exposureDrop: 8,
+        indoorReductionPct: 12,
+        co2KgWeek: 3.4,
+        category: 'Cooking',
+        badgeColor: 'bg-violet-100 text-violet-800',
+        impactText: 'Reduces indoor NO₂ & cooking PM2.5 spikes (~12% indoor gain) and saves ~3.4 kg CO₂/wk on induction.',
+        why: 'High-heat frying on unvented gas stoves can push indoor PM2.5 above outdoor smog levels.'
+      },
+      {
+        id: 'diy_corsi',
+        type: 'iaq',
+        phase: 'midday',
+        title: 'DIY Box-Fan + MERV-13 / HEPA Air Cleaner',
+        cost: '₹1,800–₹8,000',
+        effort: 'Moderate',
+        exposureDrop: 22,
+        indoorReductionPct: 35,
+        co2KgWeek: 0,
+        category: 'Filtration',
+        badgeColor: 'bg-indigo-100 text-indigo-800',
+        impactText: 'Real-world HEPA filtration cuts indoor PM2.5 by ~45–56% when paired with closed windows.',
+        why: 'EPA-grade HEPA media captures ≥99.97% of 0.3 µm particles on each pass.'
+      }
+    ];
+
+    const state = {
+      cityId: 'kolkata',
+      scenario: 'typical',
+      customPm25: 95,
+      household: 'family_kids',
+      commute: 'car',
+      cooking: 'gas_no_hood',
+      hasPurifier: false,
+      adoptedIds: new Set(['shift_walk', 'wet_mop', 'window_seal', 'no_idling']),
+      routineFilter: 'all',
+      communityHouseholds: 1,
+      activeTab: 'assistant',
+      chatMessages: []
+    };
+
+    let iaqChart = null;
+    let impactChart = null;
+
+    function getOutdoorPm25() {
+      if (state.cityId === 'custom') return state.customPm25;
+      const c = CITIES[state.cityId];
+      return state.scenario === 'peak' ? c.peakPm25 : c.avgPm25;
+    }
+
+    function getCpcbCategory(pm25) {
+      if (pm25 <= 30) return { label: 'Good', bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-800', dot: 'bg-emerald-500' };
+      if (pm25 <= 60) return { label: 'Satisfactory', bg: 'bg-lime-50', border: 'border-lime-200', text: 'text-lime-800', dot: 'bg-lime-500' };
+      if (pm25 <= 90) return { label: 'Moderate', bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-800', dot: 'bg-amber-500' };
+      if (pm25 <= 120) return { label: 'Poor', bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-800', dot: 'bg-orange-500' };
+      if (pm25 <= 250) return { label: 'Very Poor', bg: 'bg-rose-50', border: 'border-rose-200', text: 'text-rose-800', dot: 'bg-rose-500' };
+      return { label: 'Severe', bg: 'bg-red-100', border: 'border-red-300', text: 'text-red-900', dot: 'bg-red-700' };
+    }
+
+    function computeMetrics() {
+      const outdoor = getOutdoorPm25();
+      const unfilteredIndoor = Math.round(outdoor * 0.763);
+
+      let indoorFactor = 0.763;
+      if (state.hasPurifier) indoorFactor -= 0.28;
+      if (state.cooking === 'gas_no_hood') indoorFactor += 0.08;
+      if (state.cooking === 'induction') indoorFactor -= 0.04;
+
+      let exposureDrop = 0;
+      let co2PerHousehold = 0;
+      let commuteCo2 = 0;
+      let cookingCo2 = 0;
+      let communityCo2 = 0;
+
+      ACTIONS.forEach(a => {
+        if (state.adoptedIds.has(a.id)) {
+          exposureDrop += a.exposureDrop;
+          indoorFactor -= (a.indoorReductionPct / 100);
+          co2PerHousehold += a.co2KgWeek;
+          if (a.category === 'Commute') commuteCo2 += a.co2KgWeek;
+          else if (a.category === 'Cooking') cookingCo2 += a.co2KgWeek;
+          else if (a.category === 'Community') communityCo2 += a.co2KgWeek;
+        }
+      });
+
+      if (state.commute === 'transit' || state.commute === 'wfh') {
+        commuteCo2 += 12.0;
+        co2PerHousehold += 12.0;
+      }
+
+      indoorFactor = Math.max(0.22, Math.min(0.88, indoorFactor));
+      const protectedIndoor = Math.max(5, Math.round(outdoor * indoorFactor));
+      exposureDrop = Math.min(78, exposureDrop + (state.hasPurifier ? 18 : 0));
+
+      return {
+        outdoor,
+        unfilteredIndoor,
+        protectedIndoor,
+        indoorPctDrop: Math.round(((outdoor - protectedIndoor) / Math.max(1, outdoor)) * 100),
+        exposureDrop,
+        co2PerHousehold,
+        totalCo2: co2PerHousehold * state.communityHouseholds,
+        commuteCo2: commuteCo2 * state.communityHouseholds,
+        cookingCo2: cookingCo2 * state.communityHouseholds,
+        communityCo2: communityCo2 * state.communityHouseholds
+      };
+    }
+
+    function generateAiReply(userText) {
+      const m = computeMetrics();
+      const city = CITIES[state.cityId];
+      const cat = getCpcbCategory(m.outdoor);
+      const q = userText.toLowerCase();
+
+      const householdNote = {
+        family_kids: 'for your family with young children',
+        seniors: 'for a multi-generational home with seniors',
+        commuter: 'for your daily urban commute',
+        community: 'for your neighborhood / RWA group'
+      }[state.household];
+
+      if (q.includes('window') || q.includes('open') || q.includes('exercise') || q.includes('timing')) {
+        return {
+          title: `Window & Outdoor Timing for ${city.name} (${cat.label}: ${m.outdoor} µg/m³)`,
+          body: `Keep windows shut during morning (6–10 AM) and evening (6–10 PM) traffic and inversion peaks. Open them briefly between 1:00–3:30 PM only if outdoor PM2.5 dips. ${city.tip}`,
+          impacts: [
+            `Keeping windows closed cuts indoor/outdoor PM2.5 infiltration from 65.3% down to 37.5% (PMC9516965).`,
+            `Shifting outdoor walks to 1–4 PM lowers inhaled dose by ~14%.`
+          ]
+        };
+      }
+
+      if (q.includes('budget') || q.includes('indoor') || q.includes('hack') || q.includes('purifier') || q.includes('cook')) {
+        const cookTip = state.cooking === 'gas_no_hood'
+          ? 'Since you use an unvented LPG stove, cook with lids on and open the kitchen window slightly with a fan pointing outward.'
+          : 'Your vented/electric cooking setup already keeps kitchen NO₂ spikes lower—pair it with wet mopping instead of dry brooming.';
+        return {
+          title: `Low-Budget Indoor Air Hacks ${householdNote}`,
+          body: `At ${m.outdoor} µg/m³ outdoor PM2.5, an unfiltered room sits around ${m.unfilteredIndoor} µg/m³. Seal door/window gaps with foam tape, wet-mop daily, and build a DIY box-fan + MERV-13 filter (~₹1,800) for bedrooms. ${cookTip}`,
+          impacts: [
+            `Your current setup brings indoor PM2.5 to ~${m.protectedIndoor} µg/m³ (${m.indoorPctDrop}% below outdoor).`,
+            `True HEPA / MERV-13 filtration with closed windows cuts indoor PM2.5 by 45–56% in real-world studies.`
+          ]
+        };
+      }
+
+      if (q.includes('neighborhood') || q.includes('community') || q.includes('swap') || q.includes('carpool')) {
+        return {
+          title: `High-Impact Community Swaps in ${city.name}`,
+          body: `Coordinate a zero-leaf-burning pledge with your RWA/security staff (compost dry leaves instead), set up a 3-family school/office carpool or Metro feeder walk, and enforce zero-idling at apartment and school gates.`,
+          impacts: [
+            `Each household avoiding 45 km/wk of solo driving saves ~11.2 kg CO₂/week (EPA 248 g/km baseline).`,
+            `At ${state.communityHouseholds} household(s), your active plan avoids ${m.totalCo2.toFixed(1)} kg CO₂/week.`
+          ]
+        };
+      }
+
+      const maskAdvice = m.outdoor > 90
+        ? 'wear a snug N95/FFP2 mask for all commutes.'
+        : 'keep an N95 mask handy for busy traffic junctions.';
+      return {
+        title: `Today's Low-Emission Plan ${householdNote} in ${city.name}`,
+        body: `Outdoor PM2.5 is ${m.outdoor} µg/m³ (${cat.label}, ${(m.outdoor / 15).toFixed(1)}× the WHO 24-hr guideline of 15 µg/m³). Morning: skip early outdoor runs, wet-mop floors, and use Metro/carpool. Midday: ventilate briefly 1–3 PM. Evening: seal windows, run exhaust while cooking, and ${maskAdvice}`,
+        impacts: [
+          `Estimated indoor PM2.5: ${m.protectedIndoor} µg/m³ vs ${m.unfilteredIndoor} µg/m³ unfiltered.`,
+          `Total personal exposure reduction: ${m.exposureDrop}% • Weekly CO₂ avoided: ${m.co2PerHousehold.toFixed(1)} kg.`
+        ]
+      };
+    }
+
+    function renderChat() {
+      const container = document.getElementById('chatMessages');
+      container.innerHTML = '';
+      state.chatMessages.forEach(msg => {
+        const wrap = document.createElement('div');
+        wrap.className = msg.role === 'user' ? 'flex justify-end' : 'flex justify-start items-end gap-2';
+
+        if (msg.role === 'user') {
+          wrap.innerHTML = `<div class="max-w-[85%] rounded-2xl rounded-br-sm bg-gradient-to-r from-teal-500 to-sky-600 text-white px-4 py-2.5 text-sm shadow-sm">${escapeHtml(msg.text)}</div>`;
+        } else {
+          const impactsHtml = (msg.impacts || []).map(imp =>
+            `<div class="flex items-start gap-1.5 text-xs text-emerald-900 bg-emerald-50 border border-emerald-200 rounded-xl px-2.5 py-1.5">
+              <i data-lucide="trending-down" class="w-3.5 h-3.5 shrink-0 mt-0.5 text-emerald-600"></i>
+              <span>${escapeHtml(imp)}</span>
+            </div>`
+          ).join('');
+          wrap.innerHTML = `
+            <img src="assets/mascot.jpg" alt="Mascot" class="w-7 h-7 rounded-full object-cover border border-teal-200 shrink-0 hidden sm:block" />
+            <div class="max-w-[92%] rounded-2xl rounded-bl-sm bg-white border border-teal-100 px-4 py-3 text-sm shadow-sm space-y-2">
+              <div class="font-bold text-slate-900 flex items-center gap-1.5">
+                <i data-lucide="sparkles" class="w-4 h-4 text-teal-600"></i>
+                <span>${escapeHtml(msg.title)}</span>
+              </div>
+              <p class="text-slate-700 leading-relaxed text-xs sm:text-sm">${escapeHtml(msg.body)}</p>
+              ${impactsHtml ? `<div class="space-y-1.5 pt-1">${impactsHtml}</div>` : ''}
+            </div>`;
+        }
+        container.appendChild(wrap);
+      });
+      container.scrollTop = container.scrollHeight;
+      lucide.createIcons();
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, s => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[s]));
+    }
+
+    function renderRoutinesAndIaq() {
+      const routinesGrid = document.getElementById('routinesGrid');
+      const iaqGrid = document.getElementById('iaqGrid');
+      routinesGrid.innerHTML = '';
+      iaqGrid.innerHTML = '';
+
+      ACTIONS.forEach(action => {
+        const isActive = state.adoptedIds.has(action.id);
+        const cardHtml = `
+          <div class="bg-white rounded-2xl border ${isActive ? 'border-teal-400 ring-2 ring-teal-400/20 bg-gradient-to-br from-white to-teal-50/40' : 'border-slate-200'} p-4 shadow-sm flex flex-col justify-between gap-3 transition">
+            <div>
+              <div class="flex items-start justify-between gap-2">
+                <div class="flex flex-wrap items-center gap-1.5">
+                  <span class="text-[11px] font-bold uppercase tracking-wide px-2.5 py-0.5 rounded-full ${action.badgeColor}">${action.category}</span>
+                  <span class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">${action.cost}</span>
+                </div>
+                <button type="button" data-toggle-id="${action.id}" class="action-toggle px-3 py-1 rounded-full text-xs font-bold transition ${isActive ? 'bg-gradient-to-r from-teal-500 to-emerald-500 text-white shadow-sm' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}">
+                  ${isActive ? 'Active ✓' : 'Adopt'}
+                </button>
+              </div>
+              <h3 class="mt-2.5 text-sm font-bold text-slate-900">${action.title}</h3>
+              <p class="mt-1 text-xs text-slate-600 leading-relaxed">${action.why}</p>
+            </div>
+            <div class="pt-2.5 border-t border-slate-100 text-xs font-semibold text-emerald-700 flex items-start gap-1.5">
+              <i data-lucide="arrow-up-right" class="w-3.5 h-3.5 shrink-0 mt-0.5"></i>
+              <span>${action.impactText}</span>
+            </div>
+          </div>`;
+
+        if (action.type === 'routine') {
+          if (state.routineFilter === 'all' || state.routineFilter === action.phase) {
+            routinesGrid.insertAdjacentHTML('beforeend', cardHtml);
+          }
+        } else {
+          iaqGrid.insertAdjacentHTML('beforeend', cardHtml);
+        }
+      });
+
+      document.querySelectorAll('.action-toggle').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = btn.getAttribute('data-toggle-id');
+          if (state.adoptedIds.has(id)) state.adoptedIds.delete(id);
+          else state.adoptedIds.add(id);
+          updateAll();
+        });
+      });
+    }
+
+    function updateCharts(m) {
+      const iaqCtx = document.getElementById('iaqChart').getContext('2d');
+      const iaqData = [m.outdoor, m.unfilteredIndoor, m.protectedIndoor, 15];
+      if (iaqChart) {
+        iaqChart.data.datasets[0].data = iaqData;
+        iaqChart.update();
+      } else {
+        iaqChart = new Chart(iaqCtx, {
+          type: 'bar',
+          data: {
+            labels: ['Outdoor Smog', 'Unfiltered Room', 'Your Protected Room', 'WHO 24h Safe Limit'],
+            datasets: [{
+              label: 'PM2.5 (µg/m³)',
+              data: iaqData,
+              backgroundColor: ['#fb7185', '#fbbf24', '#14b8a6', '#34d399'],
+              borderRadius: 10
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              y: { beginAtZero: true, title: { display: true, text: 'PM2.5 (µg/m³)' } }
+            }
+          }
+        });
+      }
+
+      const impCtx = document.getElementById('impactChart').getContext('2d');
+      const impData = [
+        Number(m.commuteCo2.toFixed(1)),
+        Number(m.cookingCo2.toFixed(1)),
+        Number(m.communityCo2.toFixed(1))
+      ];
+      if (impactChart) {
+        impactChart.data.datasets[0].data = impData;
+        impactChart.update();
+      } else {
+        impactChart = new Chart(impCtx, {
+          type: 'doughnut',
+          data: {
+            labels: ['Low-Emission Commute', 'Clean Cooking / Energy', 'Zero-Burning Community'],
+            datasets: [{
+              data: impData,
+              backgroundColor: ['#14b8a6', '#38bdf8', '#fb7185'],
+              borderWidth: 2,
+              borderColor: '#ffffff'
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom' } }
+          }
+        });
+      }
+    }
+
+    function updateAll() {
+      const m = computeMetrics();
+      const cat = getCpcbCategory(m.outdoor);
+      const city = CITIES[state.cityId];
+
+      const badge = document.getElementById('aqiBadge');
+      badge.className = `flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs sm:text-sm font-bold shadow-sm ${cat.bg} ${cat.border} ${cat.text}`;
+      document.getElementById('aqiDot').className = `w-2.5 h-2.5 rounded-full ${cat.dot}`;
+      document.getElementById('aqiText').textContent = `PM2.5: ${m.outdoor} µg/m³ • ${cat.label}`;
+
+      const isCustom = state.cityId === 'custom';
+      document.getElementById('scenarioToggleWrap').classList.toggle('hidden', isCustom);
+      document.getElementById('customSliderWrap').classList.toggle('hidden', !isCustom);
+      document.getElementById('customSliderWrap').classList.toggle('flex', isCustom);
+
+      document.getElementById('btnTypical').className = `px-2.5 py-1 rounded-lg transition ${state.scenario === 'typical' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'}`;
+      document.getElementById('btnPeak').className = `px-2.5 py-1 rounded-lg transition ${state.scenario === 'peak' ? 'bg-white text-rose-700 shadow-sm' : 'text-slate-600'}`;
+
+      const pBtn = document.getElementById('purifierToggleBtn');
+      document.getElementById('purifierLabel').textContent = state.hasPurifier ? 'HEPA Purifier Running' : 'No HEPA Purifier Yet';
+      const pPill = document.getElementById('purifierPill');
+      if (state.hasPurifier) {
+        pBtn.className = 'w-full flex items-center justify-between rounded-xl border border-teal-400 bg-teal-50 px-3 py-2 text-sm font-semibold transition';
+        pPill.className = 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-teal-600 text-white';
+        pPill.textContent = 'ON';
+      } else {
+        pBtn.className = 'w-full flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2 text-sm font-semibold transition';
+        pPill.className = 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-200 text-slate-700';
+        pPill.textContent = 'OFF';
+      }
+
+      document.getElementById('kpiOutdoorPm').textContent = `${m.outdoor} µg/m³`;
+      document.getElementById('kpiWhoRatio').textContent = `${(m.outdoor / 15).toFixed(1)}× WHO`;
+      document.getElementById('kpiCityNote').textContent = state.scenario === 'peak' ? city.peakNote : city.avgNote;
+
+      document.getElementById('kpiIndoorPm').textContent = `${m.protectedIndoor} µg/m³`;
+      document.getElementById('kpiIndoorDrop').textContent = `-${m.indoorPctDrop}% vs outdoor`;
+      document.getElementById('kpiExposureSaved').textContent = `${m.exposureDrop}%`;
+      document.getElementById('kpiActiveCount').textContent = `${state.adoptedIds.size} actions active`;
+      document.getElementById('kpiCo2Saved').textContent = `${m.totalCo2.toFixed(1)} kg`;
+      document.getElementById('kpiHouseholdBadge').textContent = `${state.communityHouseholds} household${state.communityHouseholds > 1 ? 's' : ''}`;
+
+      document.getElementById('iaqBadge').textContent = `Indoor: ${m.protectedIndoor} µg/m³`;
+
+      document.getElementById('briefingSummary').textContent = `${city.name} is at ${m.outdoor} µg/m³ (${cat.label}). ${city.tip}`;
+      const highlights = document.getElementById('briefingHighlights');
+      highlights.innerHTML = `
+        <div class="text-xs text-slate-700 flex justify-between"><span>Unfiltered room estimate:</span><span class="font-bold">${m.unfilteredIndoor} µg/m³</span></div>
+        <div class="text-xs text-teal-700 flex justify-between"><span>With your active plan:</span><span class="font-bold">${m.protectedIndoor} µg/m³</span></div>
+        <div class="text-xs text-slate-700 flex justify-between"><span>Weekly CO₂ avoided:</span><span class="font-bold">${m.totalCo2.toFixed(1)} kg</span></div>`;
+
+      const nextAction = ACTIONS.find(a => !state.adoptedIds.has(a.id)) || ACTIONS[0];
+      const nextBtn = document.getElementById('applyTopStepBtn');
+      document.getElementById('topNextStepTitle').textContent = nextAction.title;
+      document.getElementById('topNextStepDesc').textContent = nextAction.impactText;
+      nextBtn.dataset.actionId = nextAction.id;
+      nextBtn.textContent = state.adoptedIds.has(nextAction.id) ? 'All Top Actions Active ✓' : 'Activate This Action';
+
+      const activeList = document.getElementById('activeImpactList');
+      const activeActions = ACTIONS.filter(a => state.adoptedIds.has(a.id));
+      activeList.innerHTML = activeActions.length
+        ? activeActions.map(a => `
+            <div class="p-2.5 rounded-xl bg-teal-50/50 border border-teal-100 text-xs">
+              <div class="font-bold text-slate-900">${a.title}</div>
+              <div class="text-emerald-700 mt-0.5">${a.impactText}</div>
+            </div>`).join('')
+        : `<p class="text-xs text-slate-500">Toggle routines or indoor hacks to build your household impact.</p>`;
+
+      const kmEquiv = Math.round((m.totalCo2 * 1000) / 248);
+      document.getElementById('communityEquivText').textContent = `Equivalent to taking ${kmEquiv.toLocaleString()} km of solo car driving off local roads each week.`;
+
+      renderRoutinesAndIaq();
+      updateCharts(m);
+      lucide.createIcons();
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toastText').textContent = msg;
+      toast.classList.remove('hidden');
+      toast.classList.add('flex');
+      setTimeout(() => {
+        toast.classList.add('hidden');
+        toast.classList.remove('flex');
+      }, 2400);
+    }
+
+    document.getElementById('citySelect').addEventListener('change', e => {
+      state.cityId = e.target.value;
+      updateAll();
+    });
+    document.getElementById('btnTypical').addEventListener('click', () => {
+      state.scenario = 'typical';
+      updateAll();
+    });
+    document.getElementById('btnPeak').addEventListener('click', () => {
+      state.scenario = 'peak';
+      updateAll();
+    });
+    document.getElementById('customPmRange').addEventListener('input', e => {
+      state.customPm25 = Number(e.target.value);
+      document.getElementById('customPmVal').textContent = `${state.customPm25} µg/m³`;
+      updateAll();
+    });
+    document.getElementById('householdSelect').addEventListener('change', e => {
+      state.household = e.target.value;
+      updateAll();
+    });
+    document.getElementById('commuteSelect').addEventListener('change', e => {
+      state.commute = e.target.value;
+      updateAll();
+    });
+    document.getElementById('cookingSelect').addEventListener('change', e => {
+      state.cooking = e.target.value;
+      updateAll();
+    });
+    document.getElementById('purifierToggleBtn').addEventListener('click', () => {
+      state.hasPurifier = !state.hasPurifier;
+      updateAll();
+    });
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tab = btn.getAttribute('data-tab');
+        state.activeTab = tab;
+        document.querySelectorAll('.tab-btn').forEach(b => {
+          const sel = b.getAttribute('data-tab') === tab;
+          b.setAttribute('aria-selected', sel ? 'true' : 'false');
+          b.className = `tab-btn flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition ${sel ? '' : 'text-slate-700 hover:bg-teal-50'}`;
+        });
+        document.querySelectorAll('.tab-panel').forEach(p => {
+          p.classList.toggle('hidden', p.id !== `panel-${tab}`);
+        });
+      });
+    });
+
+    document.querySelectorAll('.routine-filter').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.routineFilter = btn.getAttribute('data-filter');
+        document.querySelectorAll('.routine-filter').forEach(b => {
+          const active = b.getAttribute('data-filter') === state.routineFilter;
+          b.className = `routine-filter px-3 py-1.5 rounded-xl text-xs font-semibold ${active ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`;
+        });
+        renderRoutinesAndIaq();
+        lucide.createIcons();
+      });
+    });
+
+    document.getElementById('communitySlider').addEventListener('input', e => {
+      state.communityHouseholds = Number(e.target.value);
+      document.getElementById('communityCountLabel').textContent = String(state.communityHouseholds);
+      updateAll();
+    });
+
+    document.getElementById('applyTopStepBtn').addEventListener('click', e => {
+      const id = e.currentTarget.dataset.actionId;
+      if (id && !state.adoptedIds.has(id)) {
+        state.adoptedIds.add(id);
+        updateAll();
+        showToast('Action added to your clean-air plan');
+      }
+    });
+
+    document.getElementById('chatForm').addEventListener('submit', e => {
+      e.preventDefault();
+      const input = document.getElementById('chatInput');
+      const text = input.value.trim();
+      if (!text) return;
+      state.chatMessages.push({ role: 'user', text });
+      const reply = generateAiReply(text);
+      state.chatMessages.push({ role: 'assistant', ...reply });
+      input.value = '';
+      renderChat();
+    });
+
+    document.querySelectorAll('.quick-prompt').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const text = btn.getAttribute('data-prompt');
+        state.chatMessages.push({ role: 'user', text });
+        const reply = generateAiReply(text);
+        state.chatMessages.push({ role: 'assistant', ...reply });
+        renderChat();
+      });
+    });
+
+    document.getElementById('clearChatBtn').addEventListener('click', () => {
+      state.chatMessages = [{ role: 'assistant', ...generateAiReply('Plan today routine') }];
+      renderChat();
+    });
+
+    document.getElementById('copyPlanBtn').addEventListener('click', () => {
+      const m = computeMetrics();
+      const city = CITIES[state.cityId].name;
+      const lines = [
+        `VayuMitra Clean-Air Plan (${city}, Outdoor PM2.5: ${m.outdoor} µg/m³)`,
+        `• Estimated Indoor PM2.5: ${m.protectedIndoor} µg/m³ (-${m.indoorPctDrop}% vs outdoor)`,
+        `• Personal Exposure Reduction: ${m.exposureDrop}%`,
+        `• Community Impact (${state.communityHouseholds} households): ${m.totalCo2.toFixed(1)} kg CO₂ avoided/week`,
+        `Active Habits: ${ACTIONS.filter(a => state.adoptedIds.has(a.id)).map(a => a.title).join(', ')}`
+      ].join('\n');
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(lines).then(() => showToast('Plan copied to clipboard')).catch(() => fallbackCopy(lines));
+      } else {
+        fallbackCopy(lines);
+      }
+    });
+
+    function fallbackCopy(text) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); showToast('Plan copied to clipboard'); } catch (_) {}
+      document.body.removeChild(ta);
+    }
+
+    function toggleModal(show) {
+      const modal = document.getElementById('sourcesModal');
+      modal.classList.toggle('hidden', !show);
+      modal.classList.toggle('flex', show);
+    }
+    document.getElementById('sourcesModalBtn').addEventListener('click', () => toggleModal(true));
+    document.getElementById('sourcesModalBtnDesktop').addEventListener('click', () => toggleModal(true));
+    document.getElementById('closeSourcesBtn').addEventListener('click', () => toggleModal(false));
+    document.getElementById('sourcesModal').addEventListener('click', e => {
+      if (e.target.id === 'sourcesModal') toggleModal(false);
+    });
+
+    state.chatMessages = [{ role: 'assistant', ...generateAiReply('Plan today routine') }];
+    updateAll();
+    renderChat();
+  </script>
+</body>
+</html>
